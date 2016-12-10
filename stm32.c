@@ -29,6 +29,8 @@
 #include "port.h"
 #include "utils.h"
 
+extern struct port_options port_opts;
+
 #define STM32_ACK	0x79
 #define STM32_NACK	0x1F
 #define STM32_BUSY	0x76
@@ -353,11 +355,39 @@ static stm32_err_t stm32_send_init_seq(const stm32_t *stm)
 			? (a) \
 			: (((prev) > (a)) ? (prev) : (a)))
 
+static stm32_err_t stm32_send_invalid_command_timeout(const stm32_t *stm,
+					      const uint8_t cmd,
+					      time_t timeout)
+{
+	struct port_interface *port = stm->port;
+	stm32_err_t s_err;
+	port_err_t p_err;
+	uint8_t buf[2];
+
+	buf[0] = cmd;
+	buf[1] = cmd ^ 0xFF;
+	p_err = port->write(port, buf, 2);
+	if (p_err != PORT_ERR_OK) {
+		fprintf(stderr, "Failed to send command\n");
+		return STM32_ERR_UNKNOWN;
+	}
+	s_err = stm32_get_ack_timeout(stm, timeout);
+
+	if (s_err == STM32_ERR_NACK) {
+		fprintf(stderr, "Got NACK from device on invalid command 0x%02x\n", cmd);
+		return STM32_ERR_OK;
+	}
+	//else
+		//fprintf(stderr, "Unexpected reply from device on command 0x%02x\n", cmd);
+	return STM32_ERR_UNKNOWN;
+}
+
 stm32_t *stm32_init(struct port_interface *port, const char init)
 {
 	uint8_t len, val, buf[257];
 	stm32_t *stm;
 	int i, new_cmds;
+	//int tt;
 
 	stm      = calloc(sizeof(stm32_t), 1);
 	stm->cmd = malloc(sizeof(stm32_cmd_t));
@@ -366,8 +396,43 @@ stm32_t *stm32_init(struct port_interface *port, const char init)
 
 	if ((port->flags & PORT_CMD_INIT) && init)
 		if (stm32_send_init_seq(stm) != STM32_ERR_OK)
-			return NULL;
-
+			printf("VM: stm32_send_init_seq failed\n");
+//			return NULL;
+#if 1
+	{
+		uint32_t first_good_br = 0;
+		uint32_t last_good_br = 0;
+		uint32_t current_speed = 0;
+		//getchar();
+		for (i = 0; i < 100; i++) {
+			//scanf("%d", &tt);
+			//if(getchar() == 'b')
+			//	break;
+			if(stm32_send_invalid_command_timeout(stm, 0xAA, 0) != STM32_ERR_OK) {
+				current_speed = update_serial(port_opts.device, 10000, 1);
+				printf("current speed after update is = %d\n", current_speed);
+				continue;
+			}
+			else
+				break;
+#if 0
+			if(!first_good_br) {
+				first_good_br = current_speed;
+				last_good_br = current_speed;
+				continue;
+			}
+			else {
+				last_good_br = current_speed;
+			}
+#endif
+		}
+		if(first_good_br) {
+			printf("first good br = %d\n last good br = %d\n", first_good_br, last_good_br);
+			current_speed = update_serial(port_opts.device, (first_good_br+last_good_br)/2, 2);
+			printf("current speed after update is = %d\n", current_speed);
+		}
+	}
+#endif
 	/* get the version and read protection status  */
 	if (stm32_send_command(stm, STM32_CMD_GVR) != STM32_ERR_OK) {
 		stm32_close(stm);
