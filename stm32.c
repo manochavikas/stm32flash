@@ -154,7 +154,9 @@ static stm32_err_t stm32_get_ack_timeout(const stm32_t *stm, time_t timeout)
 		}
 
 		if (p_err != PORT_ERR_OK) {
+#if 0
 			fprintf(stderr, "Failed to read ACK byte\n");
+#endif
 			return STM32_ERR_UNKNOWN;
 		}
 
@@ -163,8 +165,10 @@ static stm32_err_t stm32_get_ack_timeout(const stm32_t *stm, time_t timeout)
 		if (byte == STM32_NACK)
 			return STM32_ERR_NACK;
 		if (byte != STM32_BUSY) {
+#if 0
 			fprintf(stderr, "Got byte 0x%02x instead of ACK\n",
 				byte);
+#endif
 			return STM32_ERR_UNKNOWN;
 		}
 	} while (1);
