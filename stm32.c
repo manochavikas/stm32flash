@@ -379,13 +379,28 @@ static stm32_err_t stm32_get_version(stm32_t *stm, uint32_t current_speed)
 void adjust_host_baud(stm32_t *stm) {
 	uint32_t first_good_br = 0;
 	uint32_t last_good_br = 0;
+	uint32_t start_speed = 0;
 	uint32_t current_speed = 0;
 	uint32_t i = 0;
 	uint8_t buf[1] = {0xAA};
 	uint32_t first_good_index = 0;
+	uint32_t adjust_quanta = 0;
 	//getchar();
-	current_speed = update_serial(port_opts.device, 900000, 2);
-	for (i = 0; i < 200; i++) {
+	//current_speed = update_serial(port_opts.device, 900000, 2);
+	current_speed = get_current_baud_rate(port_opts.device);
+	printf("current speed before tuning is = %d\n", current_speed);
+	/* No need of tuning for baud rate less than 230400 */
+	if(current_speed < 230400)
+		return;
+	/* Let's start with -10% of requested baud rate */
+	start_speed = current_speed - (current_speed/10);
+	/* adjust quanta is 1% of the requested baud rate */
+	adjust_quanta = current_speed/100;
+	current_speed = update_serial(port_opts.device, start_speed, 2);
+	printf("start baud rate for tuning is = %d\n", current_speed);
+	/* loop for 50 means from -10% to +40%. For 1Mb/s baud, it means
+	 * from 900Kb to 1.4Mb/s */
+	for (i = 0; i < 50; i++) {
 		if(stm32_get_version(stm, current_speed) == STM32_ERR_OK) {
 			if(!first_good_br) {
 				first_good_br = current_speed;
@@ -407,14 +422,14 @@ void adjust_host_baud(stm32_t *stm) {
 					i = 0;
 					first_good_br = 0;
 					last_good_br = 0;
-					current_speed = update_serial(port_opts.device, 900000, 2);
+					current_speed = update_serial(port_opts.device, start_speed, 2);
 					continue;
 				}
 
 			}
 
 		}
-		current_speed = update_serial(port_opts.device, 10000, 1);
+		current_speed = update_serial(port_opts.device, adjust_quanta, 1);
 		printf("current speed after update is = %d\n", current_speed);
 	}
 
