@@ -66,6 +66,7 @@ struct port_interface {
 	port_err_t (*write)(struct port_interface *port, void *buf, size_t nbyte);
 	port_err_t (*gpio)(struct port_interface *port, serial_gpio_t n, int level);
 	const char *(*get_cfg_str)(struct port_interface *port);
+	port_err_t (*flush)(struct port_interface *port);
 	struct varlen_cmd *cmd_get_reply;
 	void *private;
 };

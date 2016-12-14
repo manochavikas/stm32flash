@@ -239,6 +239,21 @@ static port_err_t serial_posix_open(struct port_interface *port,
 	return PORT_ERR_OK;
 }
 
+static void my_serial_flush(const serial_t *h)
+{
+	tcflush(h->fd, TCIOFLUSH);
+}
+static port_err_t serial_my_flush(struct port_interface *port)
+{
+	serial_t *h;
+
+	h = (serial_t *)port->private;
+	if (h == NULL)
+		return PORT_ERR_UNKNOWN;
+
+	my_serial_flush(h);
+	return PORT_ERR_OK;
+}
 static port_err_t serial_posix_close(struct port_interface *port)
 {
 	serial_t *h;
@@ -265,6 +280,7 @@ static port_err_t serial_posix_read(struct port_interface *port, void *buf,
 
 	while (nbyte) {
 		r = read(h->fd, pos, nbyte);
+		//printf("r = %ld\n", r);
 		if (r == 0)
 			return PORT_ERR_TIMEDOUT;
 		if (r < 0)
@@ -355,4 +371,5 @@ struct port_interface port_serial = {
 	.write	= serial_posix_write,
 	.gpio	= serial_posix_gpio,
 	.get_cfg_str	= serial_posix_get_cfg_str,
+	.flush	= serial_my_flush,
 };

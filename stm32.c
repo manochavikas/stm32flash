@@ -382,12 +382,97 @@ static stm32_err_t stm32_send_invalid_command_timeout(const stm32_t *stm,
 	return STM32_ERR_UNKNOWN;
 }
 
+static stm32_err_t stm32_get_version(stm32_t *stm, uint32_t current_speed)
+{
+	uint8_t len, buf[3];
+	if(stm32_send_command(stm, STM32_CMD_GVR) == STM32_ERR_OK) {
+		printf("succefful ACK/NACK at speed = %d\n", current_speed);
+		/* From AN, only UART bootloader returns 3 bytes */
+		len = (stm->port->flags & PORT_GVR_ETX) ? 3 : 1;
+		if (stm->port->read(stm->port, buf, len) != PORT_ERR_OK)
+			return STM32_ERR_UNKNOWN;
+		stm->version = buf[0];
+		stm->option1 = (stm->port->flags & PORT_GVR_ETX) ? buf[1] : 0;
+		stm->option2 = (stm->port->flags & PORT_GVR_ETX) ? buf[2] : 0;
+		if (stm32_get_ack(stm) != STM32_ERR_OK) {
+			stm32_close(stm);
+			return STM32_ERR_UNKNOWN;
+		}
+	return STM32_ERR_OK;
+	}
+	else
+		return STM32_ERR_UNKNOWN;
+}
+void adjust_host_baud(stm32_t *stm) {
+	uint32_t first_good_br = 0;
+	uint32_t last_good_br = 0;
+	uint32_t current_speed = 0;
+	uint32_t i = 0;
+	uint8_t buf[1] = {0xAA};
+	//getchar();
+	current_speed = update_serial(port_opts.device, 900000, 2);
+	for (i = 0; i < 200; i++) {
+		if(stm32_get_version(stm, current_speed) == STM32_ERR_OK) {
+			//if(stm32_send_invalid_command_timeout(stm, 0xAA, 0) == STM32_ERR_OK) {
+			if(!first_good_br) {
+				first_good_br = current_speed;
+				last_good_br = current_speed;
+				//	i = 194;
+			}
+			else {
+				last_good_br = current_speed;
+			}
+		}
+		else {
+			/* stop searching for good baud rate if
+			 * last good BR is found */
+			if(last_good_br)
+				break;
+#if 0
+			if((i -194) > 5)
+				break;
+			else {
+				printf("****RESETTING adjust variable\n\n");
+				i = 0;
+				first_good_br = 0;
+				last_good_br = 0;
+				current_speed = update_serial(port_opts.device, 900000, 2);
+				continue;
+			}
+
+		}
+#endif
+
+		}
+		current_speed = update_serial(port_opts.device, 10000, 1);
+		printf("current speed after update is = %d\n", current_speed);
+	}
+
+	printf("first good br = %d\n last good br = %d\n", first_good_br, last_good_br);
+	current_speed = update_serial(port_opts.device, (first_good_br+last_good_br)/2, 2);
+	printf("current speed after update is = %d\n", current_speed);
+	//if(stm32_send_invalid_command_timeout(stm, 0xAA, 0) == STM32_ERR_OK)
+	i = 10;
+	while(i) {
+		if(stm32_get_version(stm, current_speed) == STM32_ERR_OK) {
+			printf("successfull at baud rate = %d\n", current_speed);
+			break;
+		}
+		else {
+			/* send one byte for resynch */
+			stm->port->write(stm->port, buf, 1);
+			sleep(1);
+			i--;
+			current_speed = update_serial(port_opts.device, 5000, 1);
+			printf("current speed after update is = %d\n", current_speed);
+		}
+	}
+}
 stm32_t *stm32_init(struct port_interface *port, const char init)
 {
 	uint8_t len, val, buf[257];
 	stm32_t *stm;
 	int i, new_cmds;
-	//int tt;
 
 	stm      = calloc(sizeof(stm32_t), 1);
 	stm->cmd = malloc(sizeof(stm32_cmd_t));
@@ -397,42 +482,8 @@ stm32_t *stm32_init(struct port_interface *port, const char init)
 	if ((port->flags & PORT_CMD_INIT) && init)
 		if (stm32_send_init_seq(stm) != STM32_ERR_OK)
 			printf("VM: stm32_send_init_seq failed\n");
-//			return NULL;
-#if 1
-	{
-		uint32_t first_good_br = 0;
-		uint32_t last_good_br = 0;
-		uint32_t current_speed = 0;
-		//getchar();
-		for (i = 0; i < 100; i++) {
-			//scanf("%d", &tt);
-			//if(getchar() == 'b')
-			//	break;
-			if(stm32_send_invalid_command_timeout(stm, 0xAA, 0) != STM32_ERR_OK) {
-				current_speed = update_serial(port_opts.device, 10000, 1);
-				printf("current speed after update is = %d\n", current_speed);
-				continue;
-			}
-			else
-				break;
-#if 0
-			if(!first_good_br) {
-				first_good_br = current_speed;
-				last_good_br = current_speed;
-				continue;
-			}
-			else {
-				last_good_br = current_speed;
-			}
-#endif
-		}
-		if(first_good_br) {
-			printf("first good br = %d\n last good br = %d\n", first_good_br, last_good_br);
-			current_speed = update_serial(port_opts.device, (first_good_br+last_good_br)/2, 2);
-			printf("current speed after update is = %d\n", current_speed);
-		}
-	}
-#endif
+	//			return NULL;
+	adjust_host_baud(stm);
 	/* get the version and read protection status  */
 	if (stm32_send_command(stm, STM32_CMD_GVR) != STM32_ERR_OK) {
 		stm32_close(stm);

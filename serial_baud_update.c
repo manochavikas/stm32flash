@@ -47,6 +47,7 @@ uint32_t update_serial(const char *device, unsigned int speed, int inc_or_set_fl
 		return 5;
 	}
 	//printf("actual speed reported %d\n", tio.c_ospeed);
+	tcflush(fd, TCIFLUSH);
 	close(fd);
 	return tio.c_ospeed;
 }
