@@ -87,5 +87,6 @@ char serial_get_parity_str(const serial_parity_t parity);
 serial_stopbit_t serial_get_stopbit(const char *mode);
 unsigned int serial_get_stopbit_int(const serial_stopbit_t stopbit);
 unsigned int update_serial(const char *device, unsigned int speed, int set_inc_flag);
+unsigned int get_current_baud_rate(const char *device);
 
 #endif
