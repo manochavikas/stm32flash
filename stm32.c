@@ -355,33 +355,6 @@ static stm32_err_t stm32_send_init_seq(const stm32_t *stm)
 			? (a) \
 			: (((prev) > (a)) ? (prev) : (a)))
 
-static stm32_err_t stm32_send_invalid_command_timeout(const stm32_t *stm,
-					      const uint8_t cmd,
-					      time_t timeout)
-{
-	struct port_interface *port = stm->port;
-	stm32_err_t s_err;
-	port_err_t p_err;
-	uint8_t buf[2];
-
-	buf[0] = cmd;
-	buf[1] = cmd ^ 0xFF;
-	p_err = port->write(port, buf, 2);
-	if (p_err != PORT_ERR_OK) {
-		fprintf(stderr, "Failed to send command\n");
-		return STM32_ERR_UNKNOWN;
-	}
-	s_err = stm32_get_ack_timeout(stm, timeout);
-
-	if (s_err == STM32_ERR_NACK) {
-		fprintf(stderr, "Got NACK from device on invalid command 0x%02x\n", cmd);
-		return STM32_ERR_OK;
-	}
-	//else
-		//fprintf(stderr, "Unexpected reply from device on command 0x%02x\n", cmd);
-	return STM32_ERR_UNKNOWN;
-}
-
 static stm32_err_t stm32_get_version(stm32_t *stm, uint32_t current_speed)
 {
 	uint8_t len, buf[3];
@@ -413,7 +386,6 @@ void adjust_host_baud(stm32_t *stm) {
 	current_speed = update_serial(port_opts.device, 900000, 2);
 	for (i = 0; i < 200; i++) {
 		if(stm32_get_version(stm, current_speed) == STM32_ERR_OK) {
-			//if(stm32_send_invalid_command_timeout(stm, 0xAA, 0) == STM32_ERR_OK) {
 			if(!first_good_br) {
 				first_good_br = current_speed;
 				last_good_br = current_speed;
@@ -451,7 +423,6 @@ void adjust_host_baud(stm32_t *stm) {
 	printf("first good br = %d\n last good br = %d\n", first_good_br, last_good_br);
 	current_speed = update_serial(port_opts.device, (first_good_br+last_good_br)/2, 2);
 	printf("current speed after update is = %d\n", current_speed);
-	//if(stm32_send_invalid_command_timeout(stm, 0xAA, 0) == STM32_ERR_OK)
 	i = 10;
 	while(i) {
 		if(stm32_get_version(stm, current_speed) == STM32_ERR_OK) {
