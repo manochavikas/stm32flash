@@ -382,6 +382,7 @@ void adjust_host_baud(stm32_t *stm) {
 	uint32_t current_speed = 0;
 	uint32_t i = 0;
 	uint8_t buf[1] = {0xAA};
+	uint32_t first_good_index = 0;
 	//getchar();
 	current_speed = update_serial(port_opts.device, 900000, 2);
 	for (i = 0; i < 200; i++) {
@@ -389,7 +390,7 @@ void adjust_host_baud(stm32_t *stm) {
 			if(!first_good_br) {
 				first_good_br = current_speed;
 				last_good_br = current_speed;
-				//	i = 194;
+				first_good_index = i;
 			}
 			else {
 				last_good_br = current_speed;
@@ -398,22 +399,19 @@ void adjust_host_baud(stm32_t *stm) {
 		else {
 			/* stop searching for good baud rate if
 			 * last good BR is found */
-			if(last_good_br)
-				break;
-#if 0
-			if((i -194) > 5)
-				break;
-			else {
-				printf("****RESETTING adjust variable\n\n");
-				i = 0;
-				first_good_br = 0;
-				last_good_br = 0;
-				current_speed = update_serial(port_opts.device, 900000, 2);
-				continue;
-			}
+			if(last_good_br) {
+				if((i - first_good_index) > 5) /* at least 5 good br match*/
+					break;
+				else {
+					printf("****RESETTING adjust variable\n\n");
+					i = 0;
+					first_good_br = 0;
+					last_good_br = 0;
+					current_speed = update_serial(port_opts.device, 900000, 2);
+					continue;
+				}
 
-		}
-#endif
+			}
 
 		}
 		current_speed = update_serial(port_opts.device, 10000, 1);
