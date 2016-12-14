@@ -380,7 +380,9 @@ static stm32_err_t stm32_get_version(stm32_t *stm, uint32_t current_speed)
 {
 	uint8_t len, buf[3];
 	if(stm32_send_command_adj(stm, STM32_CMD_GVR, 0) == STM32_ERR_OK) {
+#if 0
 		printf("succefful ACK/NACK at speed = %d\n", current_speed);
+#endif
 		/* From AN, only UART bootloader returns 3 bytes */
 		len = (stm->port->flags & PORT_GVR_ETX) ? 3 : 1;
 		if (stm->port->read(stm->port, buf, len) != PORT_ERR_OK)
@@ -451,10 +453,14 @@ void adjust_host_baud(stm32_t *stm) {
 
 		}
 		current_speed = update_serial(port_opts.device, adjust_quanta, 1);
+#if 0
 		printf("current speed after update is = %d\n", current_speed);
+#endif
 	}
 
+#if 0
 	printf("first good br = %d\n last good br = %d\n", first_good_br, last_good_br);
+#endif
 	current_speed = update_serial(port_opts.device, (first_good_br+last_good_br)/2, 2);
 	printf("current speed after update is = %d\n", current_speed);
 	i = 10;
@@ -469,7 +475,9 @@ void adjust_host_baud(stm32_t *stm) {
 			sleep(1);
 			i--;
 			current_speed = update_serial(port_opts.device, 5000, 1);
+#if 0
 			printf("current speed after update is = %d\n", current_speed);
+#endif
 		}
 	}
 }
