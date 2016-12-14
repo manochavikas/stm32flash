@@ -403,7 +403,7 @@ static stm32_err_t stm32_get_version(stm32_t *stm, uint32_t current_speed)
 	else
 		return STM32_ERR_UNKNOWN;
 }
-void adjust_host_baud(stm32_t *stm) {
+static stm32_err_t adjust_host_baud(stm32_t *stm) {
 	uint32_t first_good_br = 0;
 	uint32_t last_good_br = 0;
 	uint32_t start_speed = 0;
@@ -418,7 +418,7 @@ void adjust_host_baud(stm32_t *stm) {
 	printf("current speed before tuning is = %d\n", current_speed);
 	/* No need of tuning for baud rate less than 230400 */
 	if(current_speed < 230400)
-		return;
+		return STM32_ERR_OK;
 	/* Let's start with -10% of requested baud rate */
 	start_speed = current_speed - (current_speed/10);
 	/* adjust quanta is 1% of the requested baud rate */
@@ -484,6 +484,9 @@ void adjust_host_baud(stm32_t *stm) {
 #endif
 		}
 	}
+	if(!i)
+		return STM32_ERR_UNKNOWN;
+	return STM32_ERR_OK;
 }
 stm32_t *stm32_init(struct port_interface *port, const char init)
 {
@@ -500,7 +503,8 @@ stm32_t *stm32_init(struct port_interface *port, const char init)
 		if (stm32_send_init_seq(stm) != STM32_ERR_OK)
 			printf("VM: stm32_send_init_seq failed\n");
 	//			return NULL;
-	adjust_host_baud(stm);
+	if(adjust_host_baud(stm) != STM32_ERR_OK)
+		return NULL;
 	/* get the version and read protection status  */
 	if (stm32_send_command(stm, STM32_CMD_GVR) != STM32_ERR_OK) {
 		stm32_close(stm);
