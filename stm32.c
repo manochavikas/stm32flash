@@ -355,10 +355,31 @@ static stm32_err_t stm32_send_init_seq(const stm32_t *stm)
 			? (a) \
 			: (((prev) > (a)) ? (prev) : (a)))
 
+static stm32_err_t stm32_send_command_adj(const stm32_t *stm,
+					      const uint8_t cmd,
+					      time_t timeout)
+{
+	struct port_interface *port = stm->port;
+	stm32_err_t s_err;
+	port_err_t p_err;
+	uint8_t buf[2];
+
+	buf[0] = cmd;
+	buf[1] = cmd ^ 0xFF;
+	p_err = port->write(port, buf, 2);
+	if (p_err != PORT_ERR_OK) {
+		fprintf(stderr, "Failed to send command\n");
+		return STM32_ERR_UNKNOWN;
+	}
+	s_err = stm32_get_ack_timeout(stm, timeout);
+	if (s_err == STM32_ERR_OK)
+		return STM32_ERR_OK;
+	return STM32_ERR_UNKNOWN;
+}
 static stm32_err_t stm32_get_version(stm32_t *stm, uint32_t current_speed)
 {
 	uint8_t len, buf[3];
-	if(stm32_send_command(stm, STM32_CMD_GVR) == STM32_ERR_OK) {
+	if(stm32_send_command_adj(stm, STM32_CMD_GVR, 0) == STM32_ERR_OK) {
 		printf("succefful ACK/NACK at speed = %d\n", current_speed);
 		/* From AN, only UART bootloader returns 3 bytes */
 		len = (stm->port->flags & PORT_GVR_ETX) ? 3 : 1;
