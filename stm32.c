@@ -484,8 +484,10 @@ static stm32_err_t adjust_host_baud(stm32_t *stm) {
 #endif
 		}
 	}
-	if(!i)
+	if(!i) {
+		fprintf(stderr,"baud rae adjustment failed, pls reset the board\n");
 		return STM32_ERR_UNKNOWN;
+	}
 	return STM32_ERR_OK;
 }
 stm32_t *stm32_init(struct port_interface *port, const char init)
